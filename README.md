@@ -1,3 +1,11 @@
+**Disclaimer:** This script is provided "as is" with no copyright. Use at your own risk.
+
+**免責聲明:** 此腳本按「原樣」提供，沒有版權。使用風險自負。
+
+**免責事項:** このスクリプトは「現状有姿」で提供され、著作権はありません。ご自身の責任でご使用ください。
+
+---
+
 # Migration Analysis Script
 
 ## English
@@ -26,7 +34,7 @@ The script creates a `migration_report` directory on the `D:\` drive, containing
 Open a PowerShell terminal and execute the following command. Remember to replace the file path with the actual location of the script if it's different.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "d:\\migration_analysis.ps1"
+powershell -ExecutionPolicy Bypass -File "e:\\0x05_INPRO\2025\Nokia_Lab\Amdocs 儲存遷移與擴容計畫書\inventory_before_Migration\migration_analysis.ps1"
 ```
 
 ### **Risk Warning**
@@ -63,7 +71,7 @@ powershell -ExecutionPolicy Bypass -File "d:\\migration_analysis.ps1"
 打開 PowerShell 終端並執行以下命令。如果腳本的實際位置不同，請記得替換文件路徑。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "d:\\migration_analysis.ps1"
+powershell -ExecutionPolicy Bypass -File "e:\\0x05_INPRO\2025\Nokia_Lab\Amdocs 儲存遷移與擴容計畫書\inventory_before_Migration\migration_analysis.ps1"
 ```
 
 ### **風險警告**
@@ -100,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File "d:\\migration_analysis.ps1"
 PowerShellターミナルを開き、以下のコマンドを実行します。スクリプトの実際の場所が異なる場合は、ファイルパスを置き換えることを忘れないでください。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "d:\\migration_analysis.ps1"
+powershell -ExecutionPolicy Bypass -File "e:\\0x05_INPRO\2025\Nokia_Lab\Amdocs 儲存遷移與擴容計畫書\inventory_before_Migration\migration_analysis.ps1"
 ```
 
 ### **リスク警告**
