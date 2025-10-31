@@ -1,10 +1,3 @@
-**Disclaimer:** This script is provided "as is" with no copyright. Use at your own risk.
-
-**免責聲明:** 此腳本按“原樣”提供，沒有版權。使用風險自負。
-
-**免責事項:** このスクリプトは「現状有姿」で提供され、著作権はありません。ご自身の責任でご使用ください。
-
----
 
 # Migration Analysis Script
 
@@ -121,3 +114,13 @@ powershell -ExecutionPolicy Bypass -File "e:\\0x05_INPRO\\2025\\Nokia_Lab\\Amdoc
 ---
 
 ![Example Image](example.jpg)
+
+---
+
+**Disclaimer:** This script is provided "as is" with no copyright. Use at your own risk.
+
+**免責聲明:** 此腳本按“原樣”提供，沒有版權。使用風險自負。
+
+**免責事項:** このスクリプトは「現状有姿」で提供され、著作権はありません。ご自身の責任でご使用ください。
+
+
