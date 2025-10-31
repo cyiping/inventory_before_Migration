@@ -3,6 +3,7 @@
 # ============================================
 
 $sourcePath = "D:\"
+$targetPath = "Z:\"
 $reportPath = "D:\migration_report"
 
 # Create report folder
@@ -37,22 +38,30 @@ try {
         $fileCounter++
         $totalLength += $file.Length
         
-        # Update progress bar for every N files
+        # Update progress bar and fixed-position console status for every 100 files
         if ($fileCounter % 100 -eq 0 -or $fileCounter -lt 10) {
             $elapsedTime = (Get-Date) - $startTime
             $rate = $fileCounter / $elapsedTime.TotalSeconds
             
-            Write-Progress -Activity "分析檔案統計 (步驟 1/8)" `
-                           -Status "正在遍歷磁碟... 已處理檔案數量: $($fileCounter.ToString('N0'))" `
-                           -CurrentOperation "處理速率: $($rate.ToString('N0')) 檔案/秒"
+            # 1. Update standard Write-Progress (top of console)
+            Write-Progress -Activity "File Statistics Analysis (Step 1/8)" `
+                           -Status "Scanning disk... Processed files: $($fileCounter.ToString('N0'))" `
+                           -CurrentOperation "Rate: $($rate.ToString('N0')) files/sec"
+
+            # 2. Fixed-position console progress (using carriage return \r and -NoNewLine)
+            $message = "Current Count: $($fileCounter.ToString('N0')) | Rate: $($rate.ToString('N0')) files/sec.           "
+            Write-Host "`r$message" -NoNewLine
         }
         
         # Pass the file object to be collected in $files for reuse
         $_
     }
     
+    # Ensure cursor moves to a new line after the fixed-position updates stop
+    Write-Host ""
+    
     # Complete the progress bar after iteration finishes
-    Write-Progress -Activity "分析檔案統計 (步驟 1/8)" -Status "分析完成" -Completed
+    Write-Progress -Activity "File Statistics Analysis (Step 1/8)" -Status "Analysis Complete" -Completed
 
     if ($fileCounter -gt 0) {
         $fileStats.TotalFiles = $fileCounter
@@ -96,14 +105,23 @@ $dateGroupsData = $files | ForEach-Object {
     $i++
     $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
     
-    Write-Progress -Activity "分析日期分佈 (步驟 4/8)" `
-                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+    # 1. Update standard Write-Progress (top of console)
+    Write-Progress -Activity "Date Distribution Analysis (Step 4/8)" `
+                   -Status "Processing... $percentage% Complete ($i/$totalFiles items)" `
                    -PercentComplete $percentage
+    
+    # 2. Fixed-position console progress (using carriage return \r and -NoNewLine) - update every 100 items
+    if ($i % 100 -eq 0 -or $i -eq $totalFiles) {
+        $message = "Progress: $percentage% ($i/$totalFiles items) processed.           "
+        Write-Host "`r$message" -NoNewLine
+    }
 
     [PSCustomObject]@{ DateKey = $_.LastWriteTime.ToString("yyyy-MM") }
 }
 
-Write-Progress -Activity "分析日期分佈 (步驟 4/8)" -Status "分析完成" -Completed
+# Ensure cursor moves to a new line after the fixed-position updates stop
+Write-Host ""
+Write-Progress -Activity "Date Distribution Analysis (Step 4/8)" -Status "Analysis Complete" -Completed
 
 $dateGroups = $dateGroupsData |
     Group-Object DateKey |
@@ -120,9 +138,16 @@ $sizeGroupsData = $files | ForEach-Object {
     $i++
     $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
     
-    Write-Progress -Activity "分析檔案大小分佈 (步驟 5/8)" `
-                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+    # 1. Update standard Write-Progress (top of console)
+    Write-Progress -Activity "Size Distribution Analysis (Step 5/8)" `
+                   -Status "Processing... $percentage% Complete ($i/$totalFiles items)" `
                    -PercentComplete $percentage
+
+    # 2. Fixed-position console progress (using carriage return \r and -NoNewLine) - update every 100 items
+    if ($i % 100 -eq 0 -or $i -eq $totalFiles) {
+        $message = "Progress: $percentage% ($i/$totalFiles items) processed.           "
+        Write-Host "`r$message" -NoNewLine
+    }
 
     $sizeBucket = switch ($_.Length) {
         {$_ -lt 10KB} { "< 10KB" }
@@ -134,7 +159,9 @@ $sizeGroupsData = $files | ForEach-Object {
     [PSCustomObject]@{ SizeBucket = $sizeBucket }
 }
 
-Write-Progress -Activity "分析檔案大小分佈 (步驟 5/8)" -Status "分析完成" -Completed
+# Ensure cursor moves to a new line after the fixed-position updates stop
+Write-Host ""
+Write-Progress -Activity "Size Distribution Analysis (Step 5/8)" -Status "Analysis Complete" -Completed
 
 $sizeGroups = $sizeGroupsData | Group-Object SizeBucket | Select-Object Name, Count
 
@@ -166,14 +193,23 @@ $fileNameList = $files | ForEach-Object {
     $i++
     $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
     
-    Write-Progress -Activity "檢查重複檔名 (步驟 7/8)" `
-                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+    # 1. Update standard Write-Progress (top of console)
+    Write-Progress -Activity "Duplicate Name Check (Step 7/8)" `
+                   -Status "Processing... $percentage% Complete ($i/$totalFiles items)" `
                    -PercentComplete $percentage
+
+    # 2. Fixed-position console progress (using carriage return \r and -NoNewLine) - update every 100 items
+    if ($i % 100 -eq 0 -or $i -eq $totalFiles) {
+        $message = "Progress: $percentage% ($i/$totalFiles items) processed.           "
+        Write-Host "`r$message" -NoNewLine
+    }
 
     [PSCustomObject]@{ FileName = $_.Name }
 }
 
-Write-Progress -Activity "檢查重複檔名 (步驟 7/8)" -Status "分析完成" -Completed
+# Ensure cursor moves to a new line after the fixed-position updates stop
+Write-Host ""
+Write-Progress -Activity "Duplicate Name Check (Step 7/8)" -Status "Analysis Complete" -Completed
 
 $duplicates = $fileNameList |
     Group-Object FileName |
@@ -216,7 +252,7 @@ Time Range:
 - Earliest: $earliestDate
 - Latest: $latestDate
 
-Duplicate Names: $duplicateCount 組
+Duplicate Names: $duplicateCount sets
 
 Detailed reports saved to: $reportPath
 ========================================
