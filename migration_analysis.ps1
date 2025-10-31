@@ -13,7 +13,10 @@ Write-Host "Source: $sourcePath"
 Write-Host "Target: $targetPath"
 Write-Host ""
 
-# 1. Basic Statistics
+# Define $files array to store results from Step 1 for reuse in later steps
+$files = @() 
+
+# 1. Basic Statistics & File Collection
 Write-Host "[1/8] Calculating total file count and size (Including Subfolders)..." -ForegroundColor Yellow
 $fileStats = @{
     TotalFiles = 0
@@ -22,20 +25,49 @@ $fileStats = @{
 }
 
 try {
-    # Added -Recurse to include all subdirectories
-    $measure = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse | 
-        Measure-Object -Property Length -Sum -Average
+    # --- Start of Progress Bar Implementation ---
+    $fileCounter = 0
+    $totalLength = [long]0
+    $startTime = Get-Date
     
-    $fileStats.TotalFiles = $measure.Count
-    $fileStats.TotalSizeGB = [math]::Round($measure.Sum / 1GB, 2)
-    $fileStats.AvgFileSizeKB = [math]::Round($measure.Average / 1KB, 2)
+    # Get all files and calculate stats, using ForEach-Object to show progress
+    $files = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse | ForEach-Object {
+        $file = $_ # Capture the current file object
+        
+        $fileCounter++
+        $totalLength += $file.Length
+        
+        # Update progress bar for every N files
+        if ($fileCounter % 100 -eq 0 -or $fileCounter -lt 10) {
+            $elapsedTime = (Get-Date) - $startTime
+            $rate = $fileCounter / $elapsedTime.TotalSeconds
+            
+            Write-Progress -Activity "分析檔案統計 (步驟 1/8)" `
+                           -Status "正在遍歷磁碟... 已處理檔案數量: $($fileCounter.ToString('N0'))" `
+                           -CurrentOperation "處理速率: $($rate.ToString('N0')) 檔案/秒"
+        }
+        
+        # Pass the file object to be collected in $files for reuse
+        $_
+    }
+    
+    # Complete the progress bar after iteration finishes
+    Write-Progress -Activity "分析檔案統計 (步驟 1/8)" -Status "分析完成" -Completed
+
+    if ($fileCounter -gt 0) {
+        $fileStats.TotalFiles = $fileCounter
+        $fileStats.TotalSizeGB = [math]::Round($totalLength / 1GB, 2)
+        $fileStats.AvgFileSizeKB = [math]::Round($totalLength / $fileCounter / 1KB, 2)
+    }
     
     Write-Host "  Total Files: $($fileStats.TotalFiles)"
     Write-Host "  Total Size: $($fileStats.TotalSizeGB) GB"
     Write-Host "  Average File Size: $($fileStats.AvgFileSizeKB) KB"
 } catch {
-    Write-Host "  Error: $_" -ForegroundColor Red
+    Write-Host "  錯誤: $_" -ForegroundColor Red
 }
+
+$totalFiles = $files.Count # Total file count for percentage calculation in subsequent steps
 
 # 2. Folder Structure
 Write-Host "[2/8] Analyzing folder structure..." -ForegroundColor Yellow
@@ -50,8 +82,8 @@ $folderInfo | Export-Csv "$reportPath\folder_structure.csv" -NoTypeInformation -
 
 # 3. Sampling Analysis
 Write-Host "[3/8] Sampling file analysis (Top 1000, including subfolders)..." -ForegroundColor Yellow
-# Added -Recurse to include all subdirectories
-$sample = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse |
+# Reuse $files from Step 1 for efficiency
+$sample = $files |
     Select-Object -First 1000 |
     Select-Object Name, Length, CreationTime, LastWriteTime, Directory
 
@@ -59,28 +91,52 @@ $sample | Export-Csv "$reportPath\file_sample.csv" -NoTypeInformation -Encoding 
 
 # 4. Date Distribution
 Write-Host "[4/8] Analyzing date distribution (Including Subfolders)..." -ForegroundColor Yellow
-# Added -Recurse to include all subdirectories
-$dateGroups = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse |
-    Group-Object {$_.LastWriteTime.ToString("yyyy-MM")} |
+$i = 0
+$dateGroupsData = $files | ForEach-Object {
+    $i++
+    $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
+    
+    Write-Progress -Activity "分析日期分佈 (步驟 4/8)" `
+                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+                   -PercentComplete $percentage
+
+    [PSCustomObject]@{ DateKey = $_.LastWriteTime.ToString("yyyy-MM") }
+}
+
+Write-Progress -Activity "分析日期分佈 (步驟 4/8)" -Status "分析完成" -Completed
+
+$dateGroups = $dateGroupsData |
+    Group-Object DateKey |
     Select-Object @{Name='YearMonth';Expression={$_.Name}}, Count |
     Sort-Object YearMonth
 
 $dateGroups | Export-Csv "$reportPath\date_distribution.csv" -NoTypeInformation -Encoding UTF8
-Write-Host "  Time Range: $($dateGroups[0].YearMonth) to $($dateGroups[-1].YearMonth)"
+Write-Host "  Time Range: $($dateGroups[0].YearMonth) 到 $($dateGroups[-1].YearMonth)"
 
 # 5. Size Distribution
 Write-Host "[5/8] Analyzing file size distribution (Including Subfolders)..." -ForegroundColor Yellow
-# Added -Recurse to include all subdirectories
-$sizeGroups = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse |
-    Group-Object {
-        switch ($_.Length) {
-            {$_ -lt 10KB} { "< 10KB" }
-            {$_ -lt 100KB} { "10-100KB" }
-            {$_ -lt 1MB} { "100KB-1MB" }
-            {$_ -lt 10MB} { "1-10MB" }
-            default { "> 10MB" }
-        }
-    } | Select-Object Name, Count
+$i = 0
+$sizeGroupsData = $files | ForEach-Object {
+    $i++
+    $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
+    
+    Write-Progress -Activity "分析檔案大小分佈 (步驟 5/8)" `
+                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+                   -PercentComplete $percentage
+
+    $sizeBucket = switch ($_.Length) {
+        {$_ -lt 10KB} { "< 10KB" }
+        {$_ -lt 100KB} { "10-100KB" }
+        {$_ -lt 1MB} { "100KB-1MB" }
+        {$_ -lt 10MB} { "1-10MB" }
+        default { "> 10MB" }
+    }
+    [PSCustomObject]@{ SizeBucket = $sizeBucket }
+}
+
+Write-Progress -Activity "分析檔案大小分佈 (步驟 5/8)" -Status "分析完成" -Completed
+
+$sizeGroups = $sizeGroupsData | Group-Object SizeBucket | Select-Object Name, Count
 
 $sizeGroups | Format-Table -AutoSize
 $sizeGroups | Export-Csv "$reportPath\size_distribution.csv" -NoTypeInformation -Encoding UTF8
@@ -105,9 +161,22 @@ if (-not $spaceCheck.SpaceSufficient) {
 
 # 7. Duplicate Filename Check
 Write-Host "[7/8] Checking for duplicate filenames (Including Subfolders)..." -ForegroundColor Yellow
-# Added -Recurse to include all subdirectories
-$duplicates = Get-ChildItem -Path "$sourcePath\*.csv" -File -Recurse |
-    Group-Object Name |
+$i = 0
+$fileNameList = $files | ForEach-Object {
+    $i++
+    $percentage = [math]::Round(($i / $totalFiles) * 100, 0)
+    
+    Write-Progress -Activity "檢查重複檔名 (步驟 7/8)" `
+                   -Status "正在處理中... $percentage% 完成 ($i/$totalFiles 筆)" `
+                   -PercentComplete $percentage
+
+    [PSCustomObject]@{ FileName = $_.Name }
+}
+
+Write-Progress -Activity "檢查重複檔名 (步驟 7/8)" -Status "分析完成" -Completed
+
+$duplicates = $fileNameList |
+    Group-Object FileName |
     Where-Object { $_.Count -gt 1 }
 
 if ($duplicates) {
@@ -119,6 +188,11 @@ if ($duplicates) {
 
 # 8. Generate Summary Report
 Write-Host "[8/8] Generating summary report..." -ForegroundColor Yellow
+# Ensure $dateGroups is not null before accessing its elements
+$earliestDate = if ($dateGroups.Count -gt 0) { $dateGroups[0].YearMonth } else { "N/A" }
+$latestDate = if ($dateGroups.Count -gt 0) { $dateGroups[-1].YearMonth } else { "N/A" }
+$duplicateCount = if ($duplicates) { $duplicates.Count } else { 0 }
+
 $summary = @"
 ========================================
 Data Migration Pre-Analysis Report
@@ -139,10 +213,10 @@ Disk Space:
 - Space Sufficient: $($spaceCheck.SpaceSufficient)
 
 Time Range:
-- Earliest: $($dateGroups[0].YearMonth)
-- Latest: $($dateGroups[-1].YearMonth)
+- Earliest: $earliestDate
+- Latest: $latestDate
 
-Duplicate Names: $($duplicates.Count) sets
+Duplicate Names: $duplicateCount 組
 
 Detailed reports saved to: $reportPath
 ========================================
