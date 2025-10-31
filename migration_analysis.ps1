@@ -3,7 +3,6 @@
 # ============================================
 
 $sourcePath = "D:\"
-$targetPath = "Z:\"
 $reportPath = "D:\migration_report"
 
 # Create report folder
